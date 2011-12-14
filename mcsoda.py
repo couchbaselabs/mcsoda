@@ -129,7 +129,6 @@ def run_worker(ctl, cfg, cur, store, prefix):
     o_last_flush = store.num_ops(cur)
     t_last = time.time()
     o_last = store.num_ops(cur)
-    ops_per_sec_prev = []
 
     report = cfg.get('report', 0)
     hot_shift = cfg.get('hot-shift', 0)
@@ -167,16 +166,6 @@ def run_worker(ctl, cfg, cur, store, prefix):
                       ops_per_sec))
             t_last = t_curr
             o_last = o_curr
-
-            ops_per_sec_prev.append(ops_per_sec)
-            while len(ops_per_sec_prev) > 10:
-               ops_per_sec_prev.pop(0)
-
-            max_ops_per_sec = cfg.get('max-ops-per-sec', 0)
-            if max_ops_per_sec > 0 and len(ops_per_sec_prev) >= 2:
-               # TODO: Do something clever here to prevent going over
-               # the max-ops-per-sec.
-               pass
 
         if flushed:
            t_curr_flush = time.time()
