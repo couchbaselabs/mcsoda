@@ -16,20 +16,23 @@ PORT = 9091
 DEST = ("www.google.com", 80)
 
 class Pump(threading.Thread):
-    def __init__(self, tag, src, dst, sub=[], end=False):
+    def __init__(self, tag, src, dst, sub=[], end=False, capture=True):
         self.tag = tag
         self.logj = "\n" + tag + ": "
         self.src = src
         self.dst = dst
         self.sub = sub
         self.end = end
+        self.capture = capture
         threading.Thread.__init__(self)
 
     def log(self, msg):
         print self.tag, self.logj.join(msg.split("\n"))
 
     def run(self):
-        f = open("out/" + self.tag + ".out", 'w')
+        f = None
+        if self.capture:
+            f = open("out/" + self.tag + ".out", 'w')
 
         try:
             while True:
@@ -39,7 +42,8 @@ class Pump(threading.Thread):
                 for patt, repl in self.sub:
                     data = re.sub(patt, repl, data)
                 self.log(data)
-                f.write(data)
+                if f:
+                    f.write(data)
                 self.dst.send(data)
         except:
             pass
@@ -52,7 +56,8 @@ class Pump(threading.Thread):
             except:
                 pass
 
-        f.close()
+        if f:
+            f.close()
 
 def run(port, dest):
     sub = [("Host: (127\\.0\\.0\\.1|localhost):%s" % (port,),
