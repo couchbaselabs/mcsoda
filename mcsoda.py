@@ -795,7 +795,7 @@ def key_to_achievements(key_num, key_str):
 doc_cache = {}
 
 def gen_doc_string(key_num, key_str, min_value_size, suffix, json,
-                   cache=None, key_name="key"):
+                   cache=None, key_name="key", suffix_ex="", whitespace=True):
     global doc_cache
 
     c = "{"
@@ -824,10 +824,12 @@ def gen_doc_string(key_num, key_str, min_value_size, suffix, json,
                           key_to_realm(key_num, key_str),
                           key_to_coins(key_num, key_str),
                           key_to_achievements(key_num, key_str))
+       if not whitespace:
+          d = d.replace("\n ", "")
        if cache:
           doc_cache[key_num] = d
 
-    return "%s%s%s" % (c, d, suffix)
+    return "%s%s%s%s" % (c, d, suffix_ex, suffix)
 
 # --------------------------------------------------------
 
