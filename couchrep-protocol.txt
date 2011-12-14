@@ -1,0 +1,93 @@
+CouchDB replication protocol...
+
+PUSH replication...
+
+Replication when destination is brand-new (clean)...
+
+  HEAD /$DB/
+  GET /$DB/
+    {"db_name":"statuswall-0",
+     "update_seq":"0-g1AAAADneJzLYWBgYMlgTmFQSElKzi9KdUhJMtbLTS3KLElMT9VLzskvTUnMK9HLSy3JAapkSmRIsv___39WIgOqHhM8epIcgGRSPTZt-KzKYwGSDA1ACqhzP0k2QrQegGgF2ZoFAGmrTUA",
+     "purge_seq":0,"other":{"data_size":0},
+     "doc_del_count":0,"doc_count":0,
+     "disk_size":316,"disk_format_version":5,
+     "compact_running":false,"instance_start_time":"0"}
+  GET /$DB/_local/74745a93e31010427fea027036fbd3bc
+    404 Object Not Found
+  POST /$DB/_revs_diff HTTP/1.1
+    => {"_design/statushub":["1-a091ec5162ae0826104ba17beb603ecf"]}
+    <= {"_design/$DB":{"missing":["1-a091ec5162ae0826104ba17beb603ecf"]}}
+  PUT /$DB/_design/statushub?new_edits=false
+    => Content-Type: multipart/related; boundary="17e9d52bc2517c2216438758f99ac192"
+         --17e9d52bc2517c2216438758f99ac192
+         content-type: application/json
+         {"_id":"_design/statushub","_rev":"1-a091ec5162ae0826104ba17beb603ecf",
+          "vendor":{"couchapp":{"evently":{"profile":{"profileReady":{"after":"function(e,
+         ...
+         --17e9d52bc2517c2216438758f99ac192
+         ... (more parts)
+         --17e9d52bc2517c2216438758f99ac192--
+    <= HTTP/1.1 201 Created
+       Location: http://steve.cloudant.com:80/statuswall-0/_design/statushub
+       Etag: "1-a091ec5162ae0826104ba17beb603ecf"
+         {"ok":true,"id":"_design/statushub","rev":"1-a091ec5162ae0826104ba17beb603ecf"}
+  POST /statuswall-0/_revs_diff
+    => {"2011-06-30_hello there2":["1-0286dbb6323b61e7f0be3ba5d1633985"]}
+    <= {"2011-06-30_hello there2":{"missing":["1-0286dbb6323b61e7f0be3ba5d1633985"]}}
+  POST /statuswall-0/_bulk_docs
+    => Transfer-Encoding: chunked
+       X-Couch-Full-Commit: false
+         1B
+         {"new_edits":false,"docs":[
+         C3
+           {"_id":"2011-06-30_hello there2","_rev":"1-0286dbb6323b61e7f0be3ba5d1633985","name":"hello there2","status":"dlskdfjsdf there","_revisions":{"start":1,"ids":["0286dbb6323b61e7f0be3ba5d1633985"]}}
+           2
+           ]}
+         0
+    <= HTTP/1.1 201 Created
+  POST /statuswall-0/_revs_diff
+    => {"2011-06-30_hi":["5-8fe6dd620ea8c93192ddaa7cd45857be"],
+        "2011-06-30_foo3":["1-99180126270af12c48a2500a4c5d1fd6"],
+        "2011-06-30_foo":["8-a8bad1989e78bc172c54327a7655486c"],
+        "2011-06-30_foo2":["2-e40956c5f8f96fb54d8813239f2856ed"],
+        "2011-06-30_afoo2":["1-f175853f526d4115807557cdd2ede448"],
+        "2011-06-30_afoo1":["1-a5c69e5a8f2fc546b32ee92ff7ce2808"],
+        "2011-06-30_steve":["2-0e3e3975ce8532c83ca9c31a9484b7ca"],
+        "_design/statuswall":["65-bf0afebdfead26cbbc603f7d48127182"]}
+    <= {"2011-06-30_foo2":{"missing":["2-e40956c5f8f96fb54d8813239f2856ed"]},
+        "2011-06-30_afoo2":{"missing":["1-f175853f526d4115807557cdd2ede448"]},
+        "_design/statuswall":{"missing":["65-bf0afebdfead26cbbc603f7d48127182"]},
+        "2011-06-30_hi":{"missing":["5-8fe6dd620ea8c93192ddaa7cd45857be"]},
+        "2011-06-30_steve":{"missing":["2-0e3e3975ce8532c83ca9c31a9484b7ca"]},
+        "2011-06-30_afoo1":{"missing":["1-a5c69e5a8f2fc546b32ee92ff7ce2808"]},
+        "2011-06-30_foo":{"missing":["8-a8bad1989e78bc172c54327a7655486c"]},
+        "2011-06-30_foo3":{"missing":["1-99180126270af12c48a2500a4c5d1fd6"]}}
+
+  ...repeat...
+
+  POST /statuswall-0/_ensure_full_commit
+    HTTP/1.1 201 Created
+    {"ok":true,"instance_start_time":"0"}
+
+  PUT /statuswall-0/_local/74745a93e31010427fea027036fbd3bc HTTP/1.1
+    => {"_id":"_local/74745a93e31010427fea027036fbd3bc","session_id":"0e6d14263f13e3ba06aa28c1764f52eb",
+        "source_last_seq":91,"replication_id_version":2,
+        "history":[{"session_id":"0e6d14263f13e3ba06aa28c1764f52eb",
+                    "start_time":"Tue, 13 Dec 2011 18:21:32 GMT",
+                    "end_time":"Tue, 13 Dec 2011 18:21:33 GMT",
+                    "start_last_seq":0,"end_last_seq":91,
+                    "recorded_seq":91,"missing_checked":12,"missing_found":12,
+                    "docs_read":12,"docs_written":12,"doc_write_failures":0}],
+        "_revisions":{"start":0,"ids":[]}}
+    <= {"ok":true,"id":"_local/74745a93e31010427fea027036fbd3bc","rev":"0-1"}
+
+Questions?
+
+* What is "X-Couch-Request-ID: b6fb3dc0"?
+* What is "GET /$DB/_local/74745a93e31010427fea027036fbd3bc"?
+* What is "X-Couch-Full-Commit: false"?
+  false means delay_commit (not full_commit).
+
+* http://wiki.apache.org/couchdb/Replication
+** As of CouchDB 0.9, pull replication is a lot more efficient and resistant to errors, and it is suggested that you use pull replication in most cases, especially if your documents are large or you have large attachments.
+
