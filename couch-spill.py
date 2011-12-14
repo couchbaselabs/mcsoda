@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import re
 import sys
 import copy
 import math
@@ -9,27 +10,28 @@ import threading
 import mcsoda
 
 class Reader(threading.Thread):
-    def __init__(self, store, src):
-        self.store = store
+    def __init__(self, src, reader_go, reader_done):
         self.src = src
+        self.reader_go = reader_go
+        self.reader_done = reader_done
+        self.inflight = 0
         threading.Thread.__init__(self)
 
     def run(self):
-        print "reading"
-        try:
-            while True:
-                data = self.src.recv(4096)
-                print "reading", data
-                if not data:
-                    break
-                print(data)
-        except:
-            pass
+        self.reader_go.wait()
+        self.reader_go.clear()
+        while True:
+            data = self.src.recv(4096)
+            if not data:
+                break
 
-        try:
-            self.src.shutdown(socket.SHUT_RD)
-        except:
-            pass
+            found = len(re.findall("HTTP/1.1 ", data))
+
+            self.inflight -= found
+            if self.inflight == 0:
+                self.reader_done.set()
+                self.reader_go.wait()
+                self.reader_go.clear()
 
 
 # Stream some mcsoda onto a couch for performance testing.
@@ -48,7 +50,9 @@ class StoreCouch(mcsoda.Store):
         self.skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.skt.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.skt.connect(tuple(self.host_port))
-        self.skt_reader = Reader(self, self.skt)
+        self.reader_go = threading.Event()
+        self.reader_done = threading.Event()
+        self.skt_reader = Reader(self.skt, self.reader_go, self.reader_done)
         self.skt_reader.daemon = True
         self.skt_reader.start()
 
@@ -76,36 +80,38 @@ class StoreCouch(mcsoda.Store):
         return False
 
     def flush(self):
-        h = "POST /default/_bulk_docs HTTP/1.1\r\n" \
-            "X-Couch-Full-Commit: false\r\n" \
-            "Content-Type: application/json\r\n" \
-            "Accept: application/json\r\n" \
-            "Host: %s:%s\r\n" % (self.host_port[0], self.host_port[1])
-        n = 0
-        a = [ '{"new_edits":false,"docs":[' ]
+        a = [ "POST /default/_bulk_docs HTTP/1.1\r\n" \
+              "X-Couch-Full-Commit: false\r\n" \
+              "Content-Type: application/json\r\n" \
+              "Accept: application/json\r\n" \
+              "Host: %s:%s\r\n" % (self.host_port[0], self.host_port[1]),
+              "Content-Length: ", None, "\r\n\r\n",
+              '{"new_edits":false,"docs":[' ]
+        x = len(a[-1]) # Content length.
+        n = 0          # Number of actual docs to be sent.
         for c in self.queue:
-            cmd, key_num, key_str, data, expiration = c
-            buf = self.command_send(cmd, key_num, key_str, data, expiration)
-            if buf:
+            cmd, key_num, key_str, doc, expiration = c
+            if doc:
                 if n > 0:
                     a.append(',')
-                a.append(buf)
-                n = n + 1
+                    x += 1
+                a.append(doc)
+                x += len(doc)
+                n += 1
         a.append("]}")
+        x += 2
 
         if n > 0:
-            body = ''.join(a)
-            full = h + "Content-Length: " + str(len(body)) + "\r\n\r\n" + body
-            self.skt.send(full)
+            a[2] = str(x) # Fill the content length placeholder.
+            m = ''.join(a)
+            self.skt_reader.inflight += 1
+            self.skt.send(m)
+            self.reader_go.set()
+            self.reader_done.wait()
+            self.reader_done.clear()
 
         self.ops += len(self.queue)
         self.queue = []
-
-    def command_send(self, cmd, key_num, key_str, data, expiration):
-        return data
-
-    def command_recv(self, cmd, key_num, key_str, data, expiration):
-        pass
 
 
 if __name__ == "__main__":
