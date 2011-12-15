@@ -23,6 +23,8 @@ class StoreMongo(mcsoda.Store):
                                self.host_port[1])
         self.db = self.conn['default']
         self.coll = self.db['default']
+        self.xfer_sent = 0
+        self.xfer_recv = 0
 
     def gen_doc(self, key_num, key_str, min_value_size, json=None, cache=None):
         global mongoDocCache

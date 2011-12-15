@@ -15,6 +15,7 @@ class Reader(threading.Thread):
         self.reader_go = reader_go
         self.reader_done = reader_done
         self.inflight = 0
+        self.received = 0
         threading.Thread.__init__(self)
 
     def run(self):
@@ -24,6 +25,8 @@ class Reader(threading.Thread):
             data = self.src.recv(4096)
             if not data:
                 break
+
+            self.received += len(data)
 
             found = len(re.findall("HTTP/1.1 ", data))
 
@@ -52,16 +55,16 @@ class StoreCouch(mcsoda.Store):
         self.skt.connect(tuple(self.host_port))
         self.reader_go = threading.Event()
         self.reader_done = threading.Event()
-        self.skt_reader = Reader(self.skt, self.reader_go, self.reader_done)
-        self.skt_reader.daemon = True
-        self.skt_reader.start()
+        self.reader = Reader(self.skt, self.reader_go, self.reader_done)
+        self.reader.daemon = True
+        self.reader.start()
+        self.xfer_sent = 0
+        self.xfer_recv = 0
 
     def gen_doc(self, key_num, key_str, min_value_size, json=True, cache=None):
         # Always json and never cache.
         #
         suffix_ex = '"_rev":"%s-0286dbb6323b61e7f0be3ba5d1633985",' % (self.seq,)
-
-        # suffix_ex += '"_revisions":{"start":1,"ids":["0286dbb6323b61e7f0be3ba5d1633985"]},'
 
         self.seq = self.seq + 1
 
@@ -104,11 +107,13 @@ class StoreCouch(mcsoda.Store):
         if n > 0:
             a[2] = str(x) # Fill the content length placeholder.
             m = ''.join(a)
-            self.skt_reader.inflight += 1
+            self.reader.inflight += 1
             self.skt.send(m)
+            self.xfer_sent += len(m)
             self.reader_go.set()
             self.reader_done.wait()
             self.reader_done.clear()
+            self.xfer_recv += self.reader.received
 
         self.ops += len(self.queue)
         self.queue = []

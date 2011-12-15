@@ -129,6 +129,8 @@ def run_worker(ctl, cfg, cur, store, prefix):
     o_last_flush = store.num_ops(cur)
     t_last = time.time()
     o_last = store.num_ops(cur)
+    xfer_sent_last = 0
+    xfer_recv_last = 0
 
     report = cfg.get('report', 0)
     hot_shift = cfg.get('hot-shift', 0)
@@ -153,19 +155,32 @@ def run_worker(ctl, cfg, cur, store, prefix):
         if report > 0 and i % report == 0:
             t_curr = time.time()
             o_curr = store.num_ops(cur)
+            xfer_sent_curr = store.xfer_sent
+            xfer_recv_curr = store.xfer_recv
 
             t_delta = t_curr - t_last
             o_delta = o_curr - o_last
+            xfer_sent_delta = xfer_sent_curr - xfer_sent_last
+            xfer_recv_delta = xfer_recv_curr - xfer_recv_last
 
             ops_per_sec = o_delta / t_delta
+            xfer_sent_per_sec = xfer_sent_delta / t_delta
+            xfer_recv_per_sec = xfer_recv_delta / t_delta
+
             log.info(prefix + dict_to_s(cur))
-            log.info("%s    ops: %s secs: %s ops/sec: %s" %
+            log.info("%s  ops: %s secs: %s ops/sec: %s" \
+                     " tx-bytes/sec: %s rx-bytes/sec: %s" %
                      (prefix,
                       string.ljust(str(o_delta), 10),
                       string.ljust(str(t_delta), 15),
-                      ops_per_sec))
+                      string.ljust(str(int(ops_per_sec)), 10),
+                      string.ljust(str(int(xfer_sent_per_sec) or "unknown"), 10),
+                      int(xfer_recv_per_sec) or "unknown"))
+
             t_last = t_curr
             o_last = o_curr
+            xfer_sent_last = xfer_sent_curr
+            xfer_recv_last = xfer_recv_curr
 
         if flushed:
            t_curr_flush = time.time()
@@ -296,6 +311,8 @@ class Store:
     def connect(self, target, user, pswd, cfg, cur):
         self.cfg = cfg
         self.cur = cur
+        self.xfer_sent = 0
+        self.xfer_recv = 0
 
     def stats_collector(self, sc):
         self.sc = sc
@@ -375,6 +392,8 @@ class StoreMemcachedBinary(Store):
                       (CMD_REPLACE, True),
                       (CMD_APPEND,  False),
                       (CMD_PREPEND, False) ]
+        self.xfer_sent = 0
+        self.xfer_recv = 0
 
     def connect_host_port(self, host, port, user, pswd):
         self.conn = mc_bin_client.MemcachedClient(host, port)
@@ -399,10 +418,14 @@ class StoreMemcachedBinary(Store):
 
     def inflight_send(self, inflight_msg):
         self.conn.s.send(inflight_msg)
+        return len(inflight_msg)
 
     def inflight_recv(self, inflight, inflight_arr, expectBuffer=None):
-       for i in range(inflight):
-          self.recvMsg()
+        received = 0
+        for i in range(inflight):
+           cmd, keylen, extralen, errcode, datalen, opaque, val, buf = self.recvMsg()
+           received += datalen + MIN_RECV_PACKET
+        return received
 
     def inflight_append_buffer(self, grp, vbucketId, opcode, opaque):
         return grp
@@ -464,7 +487,7 @@ class StoreMemcachedBinary(Store):
 
         if self.inflight > 0:
            # Receive replies from the previous batch of infight requests.
-           self.inflight_recv(self.inflight, self.inflight_grp)
+           self.xfer_recv += self.inflight_recv(self.inflight, self.inflight_grp)
            self.inflight_end_time = time.time()
            self.ops += self.inflight
            if self.sc:
@@ -486,8 +509,8 @@ class StoreMemcachedBinary(Store):
            msg = self.inflight_complete(grp)
 
            latency_start = time.time()
-           self.inflight_send(msg)
-           self.inflight_recv(1, grp, expectBuffer=False)
+           self.xfer_sent += self.inflight_send(msg)
+           self.xfer_recv += self.inflight_recv(1, grp, expectBuffer=False)
            latency_end = time.time()
 
            self.ops += 1
@@ -503,7 +526,7 @@ class StoreMemcachedBinary(Store):
            self.inflight_num_arpas = next_inflight_num_arpas
            self.inflight_start_time = time.time()
            self.inflight_grp = next_grp
-           self.inflight_send(next_msg)
+           self.xfer_sent += self.inflight_send(next_msg)
 
         if latency_cmd:
             self.add_timing_sample(latency_cmd, latency_end - latency_start)
@@ -585,6 +608,8 @@ class StoreMembaseBinary(StoreMemcachedBinary):
         rest = RestConnection(info)
         self.awareness = VBucketAwareMemcached(rest, user or 'default', info)
         self.backoff = 0
+        self.xfer_sent = 0
+        self.xfer_recv = 0
 
     def flush_level(self):
         f = StoreMemcachedBinary.flush_level(self)
@@ -604,11 +629,15 @@ class StoreMembaseBinary(StoreMemcachedBinary):
         return rv
 
     def inflight_send(self, inflight_msg):
+        sent = 0
         for server, buf in inflight_msg:
            conn = self.awareness.memcacheds[server]
            conn.s.send(buf)
+           sent += len(buf)
+        return sent
 
     def inflight_recv(self, inflight, inflight_grp, expectBuffer=None):
+        received = 0
         s_cmds = inflight_grp['s_cmds']
         reset_my_awareness = False
         backoff = False
@@ -625,6 +654,7 @@ class StoreMembaseBinary(StoreMemcachedBinary):
            for i in range(cmds):
               rcmd, keylen, extralen, errcode, datalen, ropaque, val, recvBuf = \
                   self.recvMsgSockBuf(conn.s, recvBuf)
+              received += datalen + MIN_RECV_PACKET
               if errcode == ERR_NOT_MY_VBUCKET:
                  reset_my_awareness = True
               elif errcode == ERR_ENOMEM or \
@@ -642,6 +672,7 @@ class StoreMembaseBinary(StoreMemcachedBinary):
            self.backoff = 0
         if reset_my_awareness:
            self.awareness.reset()
+        return received
 
     def recvMsgSockBuf(self, sock, buf):
         pkt, buf = self.readbytes(sock, MIN_RECV_PACKET, buf)
@@ -681,6 +712,8 @@ class StoreMemcachedAscii(Store):
         self.previous_ops = 0
         self.buf = ''
         self.arpa = [ 'add', 'replace', 'append', 'prepend' ]
+        self.xfer_sent = 0
+        self.xfer_recv = 0
 
     def command(self, c):
         self.queue.append(c)
