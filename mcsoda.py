@@ -143,33 +143,33 @@ def run_worker(ctl, cfg, cur, store, prefix):
         num_ops = cur.get('cur-gets', 0) + cur.get('cur-sets', 0)
 
         if cfg.get('max-ops', 0) > 0 and cfg.get('max-ops', 0) <= num_ops:
-            break
+           break
         if cfg.get('exit-after-creates', 0) > 0 and \
            cfg.get('max-creates', 0) > 0 and \
            cfg.get('max-creates', 0) <= cur.get('cur-creates', 0):
-            break
+           break
 
         flushed = store.command(next_cmd(cfg, cur, store))
         i += 1
 
         if report > 0 and i % report == 0:
-            t_curr = time.time()
-            o_curr = store.num_ops(cur)
-            xfer_sent_curr = store.xfer_sent
-            xfer_recv_curr = store.xfer_recv
+           t_curr = time.time()
+           o_curr = store.num_ops(cur)
+           xfer_sent_curr = store.xfer_sent
+           xfer_recv_curr = store.xfer_recv
 
-            t_delta = t_curr - t_last
-            o_delta = o_curr - o_last
-            xfer_sent_delta = xfer_sent_curr - xfer_sent_last
-            xfer_recv_delta = xfer_recv_curr - xfer_recv_last
+           t_delta = t_curr - t_last
+           o_delta = o_curr - o_last
+           xfer_sent_delta = xfer_sent_curr - xfer_sent_last
+           xfer_recv_delta = xfer_recv_curr - xfer_recv_last
 
-            ops_per_sec = o_delta / t_delta
-            xfer_sent_per_sec = xfer_sent_delta / t_delta
-            xfer_recv_per_sec = xfer_recv_delta / t_delta
+           ops_per_sec = o_delta / t_delta
+           xfer_sent_per_sec = xfer_sent_delta / t_delta
+           xfer_recv_per_sec = xfer_recv_delta / t_delta
 
-            log.info(prefix + dict_to_s(cur))
-            log.info("%s  ops: %s secs: %s ops/sec: %s" \
-                     " tx-bytes/sec: %s rx-bytes/sec: %s" %
+           log.info(prefix + dict_to_s(cur))
+           log.info("%s  ops: %s secs: %s ops/sec: %s" \
+                    " tx-bytes/sec: %s rx-bytes/sec: %s" %
                      (prefix,
                       string.ljust(str(o_delta), 10),
                       string.ljust(str(t_delta), 15),
@@ -177,10 +177,10 @@ def run_worker(ctl, cfg, cur, store, prefix):
                       string.ljust(str(int(xfer_sent_per_sec) or "unknown"), 10),
                       int(xfer_recv_per_sec) or "unknown"))
 
-            t_last = t_curr
-            o_last = o_curr
-            xfer_sent_last = xfer_sent_curr
-            xfer_recv_last = xfer_recv_curr
+           t_last = t_curr
+           o_last = o_curr
+           xfer_sent_last = xfer_sent_curr
+           xfer_recv_last = xfer_recv_curr
 
         if flushed:
            t_curr_flush = time.time()
@@ -342,10 +342,10 @@ class Store:
 
     def readbytes(self, skt, nbytes, buf):
         while len(buf) < nbytes:
-            data = skt.recv(max(nbytes - len(buf), 4096))
-            if not data:
-                return None, ''
-            buf += data
+           data = skt.recv(max(nbytes - len(buf), 4096))
+           if not data:
+              return None, ''
+           buf += data
         return buf[:nbytes], buf[nbytes:]
 
     def add_timing_sample(self, cmd, delta, prefix="latency-"):
