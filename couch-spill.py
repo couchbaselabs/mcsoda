@@ -72,7 +72,7 @@ class StoreCouch(mcsoda.Store):
         # length : 4 bytes
         # flags : 4 bytes
         #
-        suffix_ex = '"_rev":"%s-0286dbb6323b61e7f0be3ba5d1633985",' % (self.seq,)
+        # suffix_ex = '"_rev":"%s-0286dbb6323b61e7f0be3ba5d1633985",' % (self.seq,)
         suffix_ex = '"_rev":"%s-00000000000000000000000000000000",' % (self.seq,)
 
         self.seq = self.seq + 1
@@ -82,7 +82,10 @@ class StoreCouch(mcsoda.Store):
                                   True, cache=None, key_name="_id",
                                   suffix_ex=suffix_ex,
                                   whitespace=False)
-        dlen = hex(len(d))[2:].rjust(8, '0')
+
+        strip = len('"_id":"00003e3b9e533668",') + len(suffix_ex)
+        dlen = len(d) - strip
+        dlen = hex(dlen)[2:].rjust(8, '0')
         d = d.replace("-00000000000000000000000000000000",
                       '-0000000000000000%s00000000' % (dlen,))
         return d
