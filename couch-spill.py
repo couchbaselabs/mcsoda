@@ -67,15 +67,25 @@ class StoreCouch(mcsoda.Store):
     def gen_doc(self, key_num, key_str, min_value_size, json=True, cache=None):
         # Always json and never cache.
         #
+        # seqno : 4 bytes
+        # cas :  8 bytes
+        # length : 4 bytes
+        # flags : 4 bytes
+        #
         suffix_ex = '"_rev":"%s-0286dbb6323b61e7f0be3ba5d1633985",' % (self.seq,)
+        suffix_ex = '"_rev":"%s-00000000000000000000000000000000",' % (self.seq,)
 
         self.seq = self.seq + 1
 
-        return mcsoda.gen_doc_string(key_num, key_str, min_value_size,
-                                     self.cfg['suffix'][min_value_size],
-                                     True, cache=None, key_name="_id",
-                                     suffix_ex=suffix_ex,
-                                     whitespace=False)
+        d = mcsoda.gen_doc_string(key_num, key_str, min_value_size,
+                                  self.cfg['suffix'][min_value_size],
+                                  True, cache=None, key_name="_id",
+                                  suffix_ex=suffix_ex,
+                                  whitespace=False)
+        dlen = hex(len(d))[2:].rjust(8, '0')
+        d = d.replace("-00000000000000000000000000000000",
+                      '-0000000000000000%s00000000' % (dlen,))
+        return d
 
     def command(self, c):
         self.queue.append(c)
