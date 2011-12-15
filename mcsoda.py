@@ -309,10 +309,19 @@ def choose_entry(arr, n):
 class Store:
 
     def connect(self, target, user, pswd, cfg, cur):
-        self.cfg = cfg
-        self.cur = cur
-        self.xfer_sent = 0
-        self.xfer_recv = 0
+       self.target = target
+       self.cfg = cfg
+       self.cur = cur
+       self.xfer_sent = 0
+       self.xfer_recv = 0
+
+    def show_some_keys(self):
+       log.info("first 5 keys...")
+       for i in range(5):
+          print("echo get %s | nc %s %s" %
+                (self.cmd_line_get(i, prepare_key(i, self.cfg.get('prefix', ''))),
+                 self.target.split(':')[0],
+                 self.target.split(':')[1]))
 
     def stats_collector(self, sc):
         self.sc = sc
@@ -899,12 +908,7 @@ def run(cfg, cur, protocol, host_port, user, pswd,
                                       args=(ctl, cfg, cur, store,
                                             "thread-" + str(i) + ": ")))
 
-   log.info("first 5 keys...")
-   for i in range(5):
-      print("echo get %s | nc %s %s" %
-            (store.cmd_line_get(i, prepare_key(i, cfg.get('prefix', ''))),
-             host_port.split(':')[0],
-             host_port.split(':')[1]))
+   store.show_some_keys()
 
    if cfg.get("doc-cache", 0) > 0 and cfg.get("doc-gen", 0) > 0:
       min_value_size = cfg['min-value-size'][0]

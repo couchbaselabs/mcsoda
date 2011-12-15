@@ -61,6 +61,9 @@ class StoreCouch(mcsoda.Store):
         self.xfer_sent = 0
         self.xfer_recv = 0
 
+    def show_some_keys(self):
+        pass
+
     def gen_doc(self, key_num, key_str, min_value_size, json=True, cache=None):
         # Always json and never cache.
         #
