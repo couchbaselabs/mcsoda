@@ -99,30 +99,30 @@ class StoreCouch(mcsoda.Store):
         return False
 
     def flush(self):
-        a = [ "POST /default/_bulk_docs HTTP/1.1\r\n" \
-              "X-Couch-Full-Commit: false\r\n" \
-              "Content-Type: application/json\r\n" \
-              "Accept: application/json\r\n" \
-              "Host: %s:%s\r\n" % (self.host_port[0], self.host_port[1]),
-              "Content-Length: ", None, "\r\n\r\n",
-              '{"new_edits":false,"docs":[' ]
-        x = len(a[-1]) # Content length.
-        n = 0          # Number of actual docs to be sent.
+        bulk_docs_arr = [ "POST /default/_bulk_docs HTTP/1.1\r\n" \
+                          "X-Couch-Full-Commit: false\r\n" \
+                          "Content-Type: application/json\r\n" \
+                          "Accept: application/json\r\n" \
+                          "Host: %s:%s\r\n" % (self.host_port[0], self.host_port[1]),
+                          "Content-Length: ", None, "\r\n\r\n",
+                          '{"new_edits":false,"docs":[' ]
+        bulk_docs_len = len(bulk_docs_arr[-1]) # Content length.
+        bulk_docs_num = 0          # Number of actual docs to be sent.
         for c in self.queue:
             cmd, key_num, key_str, doc, expiration = c
             if doc:
-                if n > 0:
-                    a.append(',')
-                    x += 1
-                a.append(doc)
-                x += len(doc)
-                n += 1
-        a.append("]}")
-        x += 2
+                if bulk_docs_num > 0:
+                    bulk_docs_arr.append(',')
+                    bulk_docs_len += 1
+                bulk_docs_arr.append(doc)
+                bulk_docs_len += len(doc)
+                bulk_docs_num += 1
+        bulk_docs_arr.append("]}")
+        bulk_docs_len += 2
 
-        if n > 0:
-            a[2] = str(x) # Fill the content length placeholder.
-            m = ''.join(a)
+        if bulk_docs_num > 0:
+            bulk_docs_arr[2] = str(bulk_docs_len) # Fill the content length placeholder.
+            m = ''.join(bulk_docs_arr)
             self.reader.inflight += 1
             self.skt.send(m)
             self.xfer_sent += len(m)
