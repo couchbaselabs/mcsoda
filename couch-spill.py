@@ -126,10 +126,11 @@ class StoreCouch(mcsoda.Store):
             self.reader.inflight += 1
             self.skt.send(m)
             self.xfer_sent += len(m)
+            r = self.reader.received
             self.reader_go.set()
             self.reader_done.wait()
             self.reader_done.clear()
-            self.xfer_recv += self.reader.received
+            self.xfer_recv += self.reader.received - r
 
         self.ops += len(self.queue)
         self.queue = []
