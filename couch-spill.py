@@ -28,6 +28,8 @@ class Reader(threading.Thread):
 
             self.received += len(data)
 
+            print data
+
             found = len(re.findall("HTTP/1.1 ", data))
 
             self.inflight -= found
@@ -86,9 +88,10 @@ class StoreCouch(mcsoda.Store):
         strip = len('"_id":"00003e3b9e533668",') + len(suffix_ex)
         dlen = len(d) - strip
         dlen = hex(dlen)[2:].rjust(8, '0')
-        d = d.replace("-00000000000000000000000000000000",
-                      '-0000000000000000%s00000000' % (dlen,))
-        return d
+        suff = '-0000000000000000%s00000000' % (dlen,)
+        d = d.replace("-00000000000000000000000000000000", suff)
+
+        return (d, str(self.seq) + suff) # Returns (doc, rev-id).
 
     def command(self, c):
         self.queue.append(c)
@@ -99,6 +102,14 @@ class StoreCouch(mcsoda.Store):
         return False
 
     def flush(self):
+        revs_diff_arr = [ "POST /default/_revs_diff HTTP/1.1\r\n" \
+                          "Content-Type: application/json\r\n" \
+                          "Accept: application/json\r\n" \
+                          "Host: %s:%s\r\n" % (self.host_port[0], self.host_port[1]),
+                          "Content-Length: ", None, "\r\n\r\n",
+                          '{' ]
+        revs_diff_len = len(revs_diff_arr[-1]) # Content length.
+
         bulk_docs_arr = [ "POST /default/_bulk_docs HTTP/1.1\r\n" \
                           "X-Couch-Full-Commit: false\r\n" \
                           "Content-Type: application/json\r\n" \
@@ -107,25 +118,46 @@ class StoreCouch(mcsoda.Store):
                           "Content-Length: ", None, "\r\n\r\n",
                           '{"new_edits":false,"docs":[' ]
         bulk_docs_len = len(bulk_docs_arr[-1]) # Content length.
-        bulk_docs_num = 0          # Number of actual docs to be sent.
+
+        docs_num = 0 # Number of actual docs to be sent.
+
         for c in self.queue:
-            cmd, key_num, key_str, doc, expiration = c
-            if doc:
-                if bulk_docs_num > 0:
+            cmd, key_num, key_str, doc_rev, expiration = c
+            if doc_rev:
+                doc, rev = doc_rev
+
+                if docs_num > 0:
+                    revs_diff_arr.append(',')
+                    revs_diff_len += 1
+
                     bulk_docs_arr.append(',')
                     bulk_docs_len += 1
+
+                x = '"%s":["%s"]' % (key_str, rev)
+                revs_diff_arr.append(x)
+                revs_diff_len += len(x)
+
                 bulk_docs_arr.append(doc)
                 bulk_docs_len += len(doc)
-                bulk_docs_num += 1
+
+                docs_num += 1
+
+        revs_diff_arr.append("}")
+        revs_diff_len += 1
+
         bulk_docs_arr.append("]}")
         bulk_docs_len += 2
 
-        if bulk_docs_num > 0:
-            bulk_docs_arr[2] = str(bulk_docs_len) # Fill the content length placeholder.
-            m = ''.join(bulk_docs_arr)
-            self.reader.inflight += 1
+        if docs_num > 0:
+            revs_diff_arr[2] = str(revs_diff_len) # Fill content length placeholders.
+            bulk_docs_arr[2] = str(bulk_docs_len)
+
+            m = ''.join(revs_diff_arr) + ''.join(bulk_docs_arr)
+
+            self.reader.inflight += 2 # For the 2 POST requests.
             self.skt.send(m)
             self.xfer_sent += len(m)
+
             r = self.reader.received
             self.reader_go.set()
             self.reader_done.wait()
