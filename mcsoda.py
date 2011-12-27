@@ -968,33 +968,33 @@ def run(cfg, cur, protocol, host_port, user, pswd,
 def main(argv, cfg_defaults=None, cur_defaults=None, protocol=None, stores=None):
   cfg_defaults = cfg_defaults or {
      "prefix":             ("",    "Prefix for every item key."),
-     "max-ops":            (0,     "Max number of ops before exiting. 0 means keep going."),
-     "max-items":          (-1,    "Max number of items; default 100000."),
-     "max-creates":        (-1,    "Max number of creates; defaults to max-items."),
-     "min-value-size":     ("10",  "Minimal value size (bytes) during SET's; comma-separated."),
+     "max-ops":            (0,     "Max # of ops before exiting. 0 means keep going."),
+     "max-items":          (-1,    "Max # of items; default 100000."),
+     "max-creates":        (-1,    "Max # of creates; defaults to max-items."),
+     "min-value-size":     ("10",  "Min value size (bytes) for SET's; comma-separated."),
      "ratio-sets":         (0.1,   "Fraction of requests that should be SET's."),
      "ratio-creates":      (0.1,   "Fraction of SET's that should create new items."),
      "ratio-misses":       (0.05,  "Fraction of GET's that should miss."),
      "ratio-hot":          (0.2,   "Fraction of items to have as a hot item subset."),
      "ratio-hot-sets":     (0.95,  "Fraction of SET's that hit the hot item subset."),
      "ratio-hot-gets":     (0.95,  "Fraction of GET's that hit the hot item subset."),
-     "ratio-deletes":      (0.0,   "Fraction of SET updates that should be DELETE's instead."),
+     "ratio-deletes":      (0.0,   "Fraction of SET updates that shold be DELETE's."),
      "ratio-arpas":        (0.0,   "Fraction of SET non-DELETE'S to be 'a-r-p-a' cmds."),
      "ratio-expirations":  (0.0,   "Fraction of SET's that use the provided expiration."),
      "expiration":         (0,     "Expiration time parameter for SET's"),
      "exit-after-creates": (0,     "Exit after max-creates is reached."),
      "threads":            (1,     "Number of client worker threads to use."),
-     "batch":              (100,   "Batch / pipeline up this number of commands per server."),
+     "batch":              (100,   "Batch/pipeline up this # of commands per server."),
      "json":               (1,     "Use JSON documents. 0 to generate binary documents."),
      "time":               (0,     "Stop after this many seconds if > 0."),
-     "max-ops-per-sec":    (0,     "When > 0, max ops/second target performance."),
+     "max-ops-per-sec":    (0,     "When >0, max ops/second target performance."),
      "report":             (40000, "Emit performance output after this many requests."),
      "histo-precision":    (1,     "Precision of histogram bins."),
-     "vbuckets":           (0,     "When > 0, vbucket hash during memcached-binary protocol."),
-     "doc-cache":          (1,     "When 1, cache generated docs; faster but uses memory."),
-     "doc-gen":            (1,     "When 1 and doc-cache, pre-generate docs before main loop."),
+     "vbuckets":           (0,     "When >0, vbucket hash in memcached-binary protocol."),
+     "doc-cache":          (1,     "When 1, cache docs; faster, but uses O(N) memory."),
+     "doc-gen":            (1,     "When 1 and doc-cache, pre-generate docs at start."),
      "backoff-factor":     (2.0,   "Exponential backoff factor on ETMPFAIL errors."),
-     "hot-shift":          (0,     "Number of keys/sec that hot item subset should shift.")
+     "hot-shift":          (0,     "# of keys/sec that hot item subset should shift.")
      }
 
   cur_defaults = cur_defaults or {
@@ -1003,7 +1003,7 @@ def main(argv, cfg_defaults=None, cur_defaults=None, protocol=None, stores=None)
      "cur-creates":  (0, "Number of sets that were creates."),
      "cur-gets":     (0, "Number of gets already done."),
      "cur-deletes":  (0, "Number of deletes already done."),
-     "cur-arpas":    (0, "Number of add/replace/prepend/append's (a-r-p-a) commands."),
+     "cur-arpas":    (0, "# of add/replace/prepend/append's (a-r-p-a) cmds."),
      "cur-base":     (0, "Base of numeric key range. 0 by default.")
      }
 
@@ -1024,7 +1024,7 @@ def main(argv, cfg_defaults=None, cur_defaults=None, protocol=None, stores=None)
      for d in [cfg_defaults, cur_defaults]:
         for k in sorted(d.iterkeys()):
            print("  %s = %s %s" %
-                 (string.ljust(k, 20), string.ljust(str(d[k][0]), 5), d[k][1]))
+                 (string.ljust(k, 18), string.ljust(str(d[k][0]), 5), d[k][1]))
      print("")
      print("  TIP: min-value-size can be comma-separated values: min-value-size=10,256,1024")
      print("")
