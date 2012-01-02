@@ -28,8 +28,6 @@ class Reader(threading.Thread):
 
             self.received += len(data)
 
-            print data
-
             found = len(re.findall("HTTP/1.1 ", data))
 
             self.inflight -= found
@@ -157,17 +155,23 @@ class StoreCouch(mcsoda.Store):
             revs_diff_arr[2] = str(revs_diff_len) # Fill content length placeholders.
             bulk_docs_arr[2] = str(bulk_docs_len)
 
-            m = ''.join(revs_diff_arr) + ''.join(bulk_docs_arr)
+            if True:
+                # Use separate sends()'s for revs_diff and bulk_docs.
+                to_send = [(''.join(revs_diff_arr), 1), (''.join(bulk_docs_arr), 1)]
+            else:
+                # Send revs_diffs + bulk_docs in one send().
+                to_send = [(''.join(revs_diff_arr) + ''.join(bulk_docs_arr), 2)]
 
-            self.reader.inflight += 2 # For the 2 POST requests.
-            self.skt.send(m)
-            self.xfer_sent += len(m)
+            for m, num_posts in to_send:
+                self.reader.inflight += num_posts
+                self.skt.send(m)
+                self.xfer_sent += len(m)
 
-            r = self.reader.received
-            self.reader_go.set()
-            self.reader_done.wait()
-            self.reader_done.clear()
-            self.xfer_recv += self.reader.received - r
+                r = self.reader.received
+                self.reader_go.set()
+                self.reader_done.wait()
+                self.reader_done.clear()
+                self.xfer_recv += self.reader.received - r
 
         self.ops += len(self.queue)
         self.queue = []
