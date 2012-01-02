@@ -51,7 +51,7 @@ class StoreCouch(mcsoda.Store):
         self.host_port[1] = int(self.host_port[1])
         self.queue = []
         self.ops = 0
-        self.seq = 1
+        self.seq = 0
         self.skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.skt.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.skt.connect(tuple(self.host_port))
@@ -74,10 +74,15 @@ class StoreCouch(mcsoda.Store):
         # length : 4 bytes
         # flags : 4 bytes
         #
-        # suffix_ex = '"_rev":"%s-0286dbb6323b61e7f0be3ba5d1633985",' % (self.seq,)
-        suffix_ex = '"_rev":"%s-00000000000000000000000000000000",' % (self.seq,)
-
         self.seq = self.seq + 1
+        seqno = self.seq
+        if self.cfg.get('ratio-sets', 0) >= 1.0 and \
+           self.cfg.get('ratio-creates', 0) >= 1.0:
+            # If we're only creating docs, then seqno should be 1.
+            seqno = 1
+
+        # suffix_ex = '"_rev":"1-0286dbb6323b61e7f0be3ba5d1633985",'
+        suffix_ex = '"_rev":"%s-00000000000000000000000000000000",' % (seqno,)
 
         d = mcsoda.gen_doc_string(key_num, key_str, min_value_size,
                                   self.cfg['suffix'][min_value_size],
@@ -91,7 +96,7 @@ class StoreCouch(mcsoda.Store):
         suff = '-0000000000000000%s00000000' % (dlen,)
         d = d.replace("-00000000000000000000000000000000", suff)
 
-        return (d, str(self.seq) + suff) # Returns (doc, rev-id).
+        return (d, str(seqno) + suff) # Returns (doc, rev-id).
 
     def command(self, c):
         self.queue.append(c)
