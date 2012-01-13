@@ -57,7 +57,7 @@ Usage instructions
 More info
 ---------
 
-Presentation (pdf) available at: https://github.com/couchbaselabs/mcsoda/blob/master/doc/mcsoda.pdf?raw=true
+An older presentation (pdf) is available at: https://github.com/couchbaselabs/mcsoda/blob/master/doc/mcsoda.pdf?raw=true
 
 
 
