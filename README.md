@@ -1,4 +1,6 @@
-mcsoda - sugary streaming load-generator for key-value stores.
+mcsoda - sugary streaming load-generator for key-value stores
+=============================================================
+
 
 Is mcsoda good for you? Or, rather, does it work well as a
 load-generator?  I've seen mcsoda do better than some other C-based
