@@ -14,12 +14,13 @@ avoiding the classic single-request / single-response approach.
 Instead, mcsoda uses a "streaming" or batched approach similar to
 spymemcached's design.
 
-Instead of doing individual send() & recv() calls for each request,
-mcsoda batches up a (configurable) number of requests into one buffer
-and does single, large send() system call. This results in fewer
+Instead of invoking multiple, individual send() & recv() calls for
+each request, mcsoda batches up a (configurable) number of requests
+into one buffer and invokes a single, large send() system call. And,
+mcsoda invokes read()'s in buffered fashion. This results in fewer
 system calls, and the networking stack is better utilized.  On the
 server-side, key-value servers like memcached can be more fully
-utilized doing request processing work rather than waiting for the
+utilized with real request processing work rather than waiting for the
 request-response tennis ball to be batted back and forth across the
 net.
 
@@ -27,8 +28,9 @@ The ugly/bad
 ------------
 
 One place where mcsoda does NOT work well is in leveraging multiple
-threads.  Even though mcsoda can run with multiple threads, python's
-threading is sub-optimal, so multi-threaded mcsoda is not recommened.
+client-side threads.  Even though mcsoda can run with multiple
+threads, python's threading is sub-optimal, so multi-threaded mcsoda
+is not recommened.
 
 The good
 --------
@@ -36,10 +38,10 @@ The good
 There's an advantage to single-threadedness, however, and that is
 repeatability.  If you have multiple runs of mcsoda and invoke those
 mcsoda's using the same exact command-line parameters, then each of
-those multiple mcsoda invocations will generate the same exact
-sequence of requests.  If you change (or improve) the server, you can
-repeat your performance experiments more scientifically be reusing the
-same mcsoda parameters from previous runs.
+those multiple mcsoda instances will generate the same exact sequence
+of requests.  If you change (or improve) the server, you can repeat
+your performance experiments more scientifically be reusing the same
+mcsoda parameters from previous runs.
 
 Additionally, mcsoda tries (optionally) to use a constant amount of
 memory, even as it's tracking histograms & statistics.  Other
