@@ -1,4 +1,33 @@
-mcsoda - sugary streaming load generator for key-value stores.
+mcsoda - sugary streaming load-generator for key-value stores.
+
+Is mcsoda good for you? Or, rather, does it work well as a
+load-generator?  I've seen mcsoda do better than some other C-based
+load generators in many cases (but your own mileage may vary).
+
+Mainly, this is because mcsoda (cheats) operates differently by
+avoiding a single-request / single-response approach and instead uses
+a "streaming" or batched approach similar to spymemcached's design.
+
+Instead of doing individual send() & recv() calls for each request,
+that is, mcsoda batches up a (configurable) number of requests into
+one buffer and does single, large send() system call. This results in
+less system calls, and the networking stack is better utilized.  On
+the server-side, key-value servers like memcached can be fully
+utilized processing requests rather than waiting for the
+request-response tennis ball to be batted back and forth across the
+net. The batching in mcsoday is configured with the mcsoda's
+batch=NUM_OF_REQUESTS_TO_BATCH parameter.
+
+Additionally, mcsoda tries (optionally) hard to use a constant amount
+of memory, even as it's tracking histograms & statistics.  Other
+load-generators may have bugs that add a little bit of memory usage on
+each request, leaving those other load-generators vulnerable in long
+running tests to the linux OOM killer.
+
+Finally, one place where mcsoda does NOT work well is in leveraging
+multiple threads.  Even though mcsoda can run with multiple threads,
+python's threading is suboptimal, so multi-threaded mcsoda is not
+recommened.
 
 Usage instructions
 ------------------
@@ -53,6 +82,47 @@ Usage instructions
       cur-sets           = 0     Number of sets already done.
 
       TIP: min-value-size can be comma-separated values: min-value-size=10,256,1024
+
+FAQ
+---
+
+Q: Will the cluster-aware version be vbucket-aware or still require
+moxi (the memcached/couchbase proxy)?
+
+A: No moxi required -- mcsoda can optionally behave as a so-called
+"smart client" and respond to Couchbase's dynamic cluster
+server-map/REST topology changes. In other words, you can use
+Rebalance to add/remove server nodes while using mcsoda.
+
+Q: What about the non-cluster aware?  I wish to do a bit of testing on
+single-node and see if that makes a difference... so I need port
+11210 "direct access" compatibility?
+
+A: Yes, you can do that too with mcsoda.
+
+The "protocol" part of the URL-looking parameter control mcsoda's
+behavior.  To target a single-node's memcached on its direct port,
+11210, use "memcached-binary://HOST:11210".  However, when you target
+port 11210, you'll also need to tell mcsoda how many vbuckets there
+are (otherwise, it only targets vbucket 0).
+
+Example...
+
+    ./mcsoda.py memcached-binary://HOST:11210 vbuckets=1024
+
+Or, if you're testing Couchbase 2.0...
+
+    ./mcsoda.py memcached-binary://HOST:11210 vbuckets=256
+
+To target moxi, use port 11211...
+
+    ./mcsoda.py memcached-binary://HOST:11211
+
+For completeness, to target an entire Couchbase / Membase cluster, use
+"membase-binary://HOST:8091".  mcsoda only targets the default bucket.
+Example...
+
+    ./mcsoda.py membase-binary://HOST:8091
 
 More info
 ---------
