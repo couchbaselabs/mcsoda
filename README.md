@@ -155,6 +155,13 @@ In short, when trying to do long, multi-hour or multi-day runs, used
 doc-cache=0.  If you're also trying to test with a lot of documents,
 also use doc-gen=0.
 
+Q: If mcsoda uses request batching, how does it get latency timings?
+
+At the start of each batch, mcsoda performns do a single, classic
+request-reply to the server in order to measure latency.  So, if your
+batch=100 (the default), then every hundred'th request will be a
+latency measurement request.
+
 More info
 ---------
 
