@@ -1,14 +1,18 @@
 mcsoda - sugary streaming load-generator for key-value stores
 =============================================================
 
-
 Is mcsoda good for you? Or, rather, does it work well as a
-load-generator?  I've seen mcsoda do better than some other C-based
-load generators in many cases (but your own mileage may vary).
+load-generator?  Even though mcsoda's implemented in python, I've seen
+mcsoda perform better than some other C-based load generators in
+several cases (but your own mileage may vary).
 
-Mainly, this is because mcsoda (cheats) operates differently by
-avoiding a single-request / single-response approach and instead uses
-a "streaming" or batched approach similar to spymemcached's design.
+What is mcsoda's secret ingredient?
+-----------------------------------
+
+mcsoda performs well because it (cheats) operates differently by
+avoiding the classic single-request / single-response approach.
+Instead, mcsoda uses a "streaming" or batched approach similar to
+spymemcached's design.
 
 Instead of doing individual send() & recv() calls for each request,
 mcsoda batches up a (configurable) number of requests into one buffer
@@ -17,19 +21,31 @@ system calls, and the networking stack is better utilized.  On the
 server-side, key-value servers like memcached can be more fully
 utilized doing request processing work rather than waiting for the
 request-response tennis ball to be batted back and forth across the
-net. The batching in mcsoda is configured with the mcsoda's
-batch=NUM_OF_REQUESTS_TO_BATCH parameter.
+net.
 
-Additionally, mcsoda tries (optionally) hard to use a constant amount
-of memory, even as it's tracking histograms & statistics.  Other
-load-generators may have bugs that add a little bit of memory usage on
-each request, leaving those other load-generators vulnerable in long
-running tests to the linux OOM killer.
+The ugly/bad
+------------
 
-Finally, one place where mcsoda does NOT work well is in leveraging
-multiple threads.  Even though mcsoda can run with multiple threads,
-python's threading is suboptimal, so multi-threaded mcsoda is not
-recommened.
+One place where mcsoda does NOT work well is in leveraging multiple
+threads.  Even though mcsoda can run with multiple threads, python's
+threading is sub-optimal, so multi-threaded mcsoda is not recommened.
+
+The good
+--------
+
+There's an advantage to single-threadedness, however, and that is
+repeatability.  If you have multiple runs of mcsoda and invoke those
+mcsoda's using the same exact command-line parameters, then each of
+those multiple mcsoda invocations will generate the same exact
+sequence of requests.  If you change (or improve) the server, you can
+repeat your performance experiments more scientifically be reusing the
+same mcsoda parameters from previous runs.
+
+Additionally, mcsoda tries (optionally) to use a constant amount of
+memory, even as it's tracking histograms & statistics.  Other
+load-generators may have bugs or features that add a little bit of
+memory usage on each request, leaving those other load-generators
+vulnerable in long running tests to out-of-memory conditions.
 
 Usage instructions
 ------------------
@@ -149,7 +165,10 @@ number of documents, since mcsoda will spend a lot of time generating
 docs before sending its first requests.  So, to turn off document
 pre-generation, used doc-gen=0.
 
-Even if doc-gen=0, you might want mcsoda to cache any documents that it ends up creating during runtimes. To do that, specify doc-cache=1.  Over long runs, however, mcsoda will end up using more and more memory to hold onto those cached, generated documents.
+Even if doc-gen=0, you might want mcsoda to cache any documents that
+it ends up creating during runtimes. To do that, specify doc-cache=1.
+Over long runs, however, mcsoda will end up using more and more memory
+to hold onto those cached, generated documents.
 
 In short, when trying to do long, multi-hour or multi-day runs, used
 doc-cache=0.  If you're also trying to test with a lot of documents,
