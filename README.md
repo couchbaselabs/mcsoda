@@ -9,13 +9,13 @@ avoiding a single-request / single-response approach and instead uses
 a "streaming" or batched approach similar to spymemcached's design.
 
 Instead of doing individual send() & recv() calls for each request,
-that is, mcsoda batches up a (configurable) number of requests into
-one buffer and does single, large send() system call. This results in
-less system calls, and the networking stack is better utilized.  On
-the server-side, key-value servers like memcached can be fully
-utilized processing requests rather than waiting for the
+mcsoda batches up a (configurable) number of requests into one buffer
+and does single, large send() system call. This results in fewer
+system calls, and the networking stack is better utilized.  On the
+server-side, key-value servers like memcached can be more fully
+utilized doing request processing work rather than waiting for the
 request-response tennis ball to be batted back and forth across the
-net. The batching in mcsoday is configured with the mcsoda's
+net. The batching in mcsoda is configured with the mcsoda's
 batch=NUM_OF_REQUESTS_TO_BATCH parameter.
 
 Additionally, mcsoda tries (optionally) hard to use a constant amount
@@ -86,6 +86,18 @@ Usage instructions
 FAQ
 ---
 
+Q: How do I use mcsoda to load a million documents, and then exit?
+
+    ./mcsoda.py URL max-items=1000000 ratio-sets=1 ratio-creates=1 exit-after-creates=1
+
+That can be read like "of the requests that mcsoda will perform, 100%
+of them should be SET's (related, 0% will be GET's).  That is because
+the ratio-sets=1.00
+
+Of those SET's, 100% will be SET's that create new items (related, 0%
+will be mutations on existing items).  That is because the
+rattio-creates=1.00
+
 Q: Will the cluster-aware version be vbucket-aware or still require
 moxi (the memcached/couchbase proxy)?
 
@@ -123,6 +135,23 @@ For completeness, to target an entire Couchbase / Membase cluster, use
 Example...
 
     ./mcsoda.py membase-binary://HOST:8091
+
+Q: What is doc-gen and doc-cache and do I need those?
+
+The doc-gen and doc-cache parameters let you control some time/space
+tradeoffs in mcsoda.  It takes time to generate documents.  Instead,
+if you want to generate them up-front, use doc-gen=1.  This will give
+you better runtime performance.  However, holding onto all these
+pre-generated docs won't be good if you're trying to load a huge
+number of documents, since mcsoda will spend a lot of time generating
+docs before sending its first requests.  So, to turn off document
+pre-generation, used doc-gen=0.
+
+Even if doc-gen=0, you might want mcsoda to cache any documents that it ends up creating during runtimes. To do that, specify doc-cache=1.  Over long runs, however, mcsoda will end up using more and more memory to hold onto those cached, generated documents.
+
+In short, when trying to do long, multi-hour or multi-day runs, used
+doc-cache=0.  If you're also trying to test with a lot of documents,
+also use doc-gen=0.
 
 More info
 ---------
