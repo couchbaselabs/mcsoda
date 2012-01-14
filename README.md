@@ -98,7 +98,7 @@ the ratio-sets=1.00
 
 Of those SET's, 100% will be SET's that create new items (related, 0%
 will be mutations on existing items).  That is because the
-rattio-creates=1.00
+ratio-creates=1.00
 
 Q: Will the cluster-aware version be vbucket-aware or still require
 moxi (the memcached/couchbase proxy)?
