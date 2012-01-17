@@ -327,7 +327,20 @@ class Store:
         self.sc = sc
 
     def command(self, c):
-        log.info("%s %s %s %s %s" % c)
+        cmd, key_num, key_str, data, expiration = c
+        if cmd[0] == 'g':
+            print('get ' + key_str + '\r')
+            return False
+        if cmd[0] == 'd':
+            print('delete ' + key_str + '\r')
+            return False
+
+        c = 'set'
+        if cmd[0] == 'a':
+           c = self.arpa[self.cur.get('cur-sets', 0) % len(self.arpa)]
+
+        print("%s %s 0 %s %s\r\n%s\r" % (c, key_str, expiration,
+                                         len(data), data))
         return False
 
     def flush(self):
@@ -866,7 +879,9 @@ def gen_doc_string(key_num, key_str, min_value_size, suffix, json,
 
 PROTOCOL_STORE = { 'memcached-ascii': StoreMemcachedAscii,
                    'memcached-binary': StoreMemcachedBinary,
-                   'membase-binary': StoreMembaseBinary}
+                   'membase-binary': StoreMembaseBinary,
+                   'none-binary': Store,
+                   'none': Store }
 
 def run(cfg, cur, protocol, host_port, user, pswd,
         stats_collector = None, stores = None, ctl = None):
@@ -1017,7 +1032,9 @@ def main(argv, cfg_defaults=None, cur_defaults=None, protocol=None, stores=None)
                "          %s 127.0.0.1:11211",
                "          %s 127.0.0.1",
                "          %s my-test-bucket@127.0.0.1",
-               "          %s my-test-bucket:MyPassword@127.0.0.1"]:
+               "          %s my-test-bucket:MyPassword@127.0.0.1",
+               "          %s none://127.0.0.1",
+               ]:
         print(s % (argv[0]))
      print("")
      print("optional key=val's and their defaults:")

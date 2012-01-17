@@ -183,6 +183,11 @@ request-reply to the server in order to measure latency.  So, if your
 batch=100 (the default), then every hundred'th request will be a
 latency measurement request.
 
+Q: How do I see what data mcsoda is loading?
+
+Use the 'none://' protocol, which is a NO-OP protocol and make mcsoda
+just print out the commands it would have sent to a server.
+
 More info
 ---------
 
