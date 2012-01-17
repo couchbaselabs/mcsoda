@@ -108,7 +108,7 @@ FAQ
 
 Q: How do I use mcsoda to load a million documents, and then exit?
 
-    ./mcsoda.py URL max-items=1000000 ratio-sets=1 ratio-creates=1 exit-after-creates=1
+    ./mcsoda.py URL max-items=1000000 ratio-sets=1 ratio-creates=1 exit-after-creates=1 doc-gen=0 doc-create=0
 
 That can be read like "of the requests that mcsoda will perform, 100%
 of them should be SET's (related, 0% will be GET's).  That is because
