@@ -35,17 +35,19 @@ is not recommened.
 The good
 --------
 
-There's an advantage to single-threadedness, however, and that is
-repeatability.  If you have multiple runs of mcsoda and invoke those
+There's an advantage to single-threadedness, however, and that is that
+reaching repeatability is much easier to accomplish.  mcsoda supports
+repeatability by implementing a functional algorithm to workload
+generation.  If you have multiple runs of mcsoda and invoke those
 mcsoda's using the same exact command-line parameters, then each of
-those multiple mcsoda instances will generate the same exact sequence
-of requests.  If you change (or improve) the server, you can repeat
-your performance experiments more scientifically be reusing the same
+those separate runs of mcsoda will generate the same exact sequence of
+requests.  If you change (or improve) the server, you can repeat your
+performance experiments more scientifically by reusing the same exact
 mcsoda parameters from previous runs.
 
 Additionally, mcsoda tries (optionally) to use a constant amount of
 memory, even as it's tracking histograms & statistics.  Other
-load-generators may have bugs or features that add a little bit of
+load-generators may have bugs (or features) that add a little bit of
 memory usage on each request, leaving those other load-generators
 vulnerable in long running tests to out-of-memory conditions.
 
