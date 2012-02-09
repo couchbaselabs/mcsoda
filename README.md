@@ -190,6 +190,48 @@ Q: How do I see what data mcsoda is loading?
 Use the 'none://' protocol, which is a NO-OP protocol and make mcsoda
 just print out the commands it would have sent to a server.
 
+Q: What's the significance of the number of items (max-items).  Any
+reason not use the default?
+
+No reason not to use default.  Just be consistent (you probably are)
+for perf tests, and if not already, probably have to reset your server
+cluster every time.
+
+Q: If the number of operations (max-ops) is greater than the number of
+items (max-items), after max-items is reached, the existing items are
+just reused for operations, right?
+
+That's right -- it rolls around.  By that, I mean that mcsoda keeps
+track of the # of items it knows it has created itself (in a cur-items
+counter), and it can do operations against those known items.
+
+Q: I'd like to pre-load data before running (and re-running) the
+actual test.  So, I want to use two (or more) invocations of mcsoda.
+
+The trick is the 2nd invocation of mcsoda needs to be told the number
+of items that are already there, via the cur-items parameter.  So...
+
+1) loading phase - mcsoda ... max-items=1000000 ratio-sets=1 ratio-creates=1 exit-after-creates=1 doc-gen=0 doc-cache=0
+
+2) accessing phase - mcsoda ... max-items=1000000 cur-items=1000000 ...
+
+Q: I've been asked to measure performance for up to 16kb documents.  I
+found that when I went above 9kb the behavior of mcsoda changed a lot
+(i.e., if max-ops was something small like 10k, it would return almost
+immediately, until i crossed the 9k document size, then it would
+appear to hang forever, maybe not, but I would give up waiting).  I
+found that if reduced the batch size to 50, I could safely go up to
+the 16kb doc size, so I'm assuming the size of the batch was exceeding
+some threshold.  I can use batch=50 for these tests but I was
+wondering what might be going on here?
+
+It's likely some bug in mcsoda.  mcsoda's doing a single send() call
+per batch.  So, 16K * 100 byte sized buffer for each single send()
+call.  There's no error handling if there's a problem with mcsoda's
+send() call, and perhaps it's too large / would-block, etc.
+
+You found the right workaround, though, to bring down the batch size.
+
 More info
 ---------
 
