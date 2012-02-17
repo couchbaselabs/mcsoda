@@ -15,8 +15,9 @@ sys.path.append("lib")
 sys.path.append(".")
 
 try:
-   import logger
-   log = logger.new_logger("mcsoda")
+   import logging
+   logging.config.fileConfig("mcsoda.logging.conf")
+   log = logging.getLogger()
 except:
    class P:
       def error(self, m): print(m)
@@ -653,9 +654,12 @@ class StoreMembaseBinary(StoreMemcachedBinary):
     def inflight_send(self, inflight_msg):
         sent = 0
         for server, buf in inflight_msg:
-           conn = self.awareness.memcacheds[server]
-           conn.s.send(buf)
-           sent += len(buf)
+           try:
+              conn = self.awareness.memcacheds[server]
+              conn.s.send(buf)
+              sent += len(buf)
+           except:
+              pass
         return sent
 
     def inflight_recv(self, inflight, inflight_grp, expectBuffer=None):
@@ -663,27 +667,37 @@ class StoreMembaseBinary(StoreMemcachedBinary):
         s_cmds = inflight_grp['s_cmds']
         reset_my_awareness = False
         backoff = False
+
         for server in s_cmds.keys():
-           conn = self.awareness.memcacheds[server]
            try:
-              recvBuf = conn.recvBuf
+              conn = self.awareness.memcacheds[server]
+              try:
+                 recvBuf = conn.recvBuf
+              except:
+                 recvBuf = ''
+              if expectBuffer == False and recvBuf != '':
+                 raise Exception("Was expecting empty buffer, but have (" + \
+                                    str(len(recvBuf)) + "): " + recvBuf)
+              cmds = s_cmds[server]
+              for i in range(cmds):
+                 try:
+                    rcmd, keylen, extralen, errcode, datalen, ropaque, val, recvBuf = \
+                        self.recvMsgSockBuf(conn.s, recvBuf)
+                    received += datalen + MIN_RECV_PACKET
+                    if errcode == ERR_NOT_MY_VBUCKET:
+                       reset_my_awareness = True
+                    elif errcode == ERR_ENOMEM or \
+                         errcode == ERR_EBUSY or \
+                         errcode == ERR_ETMPFAIL:
+                       backoff = True
+                 except:
+                    reset_my_awareness = True
+                    backoff = True
+              conn.recvBuf = recvBuf
            except:
-              recvBuf = ''
-           if expectBuffer == False and recvBuf != '':
-              raise Exception("Was expecting empty buffer, but have (" + \
-                                 str(len(recvBuf)) + "): " + recvBuf)
-           cmds = s_cmds[server]
-           for i in range(cmds):
-              rcmd, keylen, extralen, errcode, datalen, ropaque, val, recvBuf = \
-                  self.recvMsgSockBuf(conn.s, recvBuf)
-              received += datalen + MIN_RECV_PACKET
-              if errcode == ERR_NOT_MY_VBUCKET:
-                 reset_my_awareness = True
-              elif errcode == ERR_ENOMEM or \
-                   errcode == ERR_EBUSY or \
-                   errcode == ERR_ETMPFAIL:
-                 backoff = True
-           conn.recvBuf = recvBuf
+              reset_my_awareness = True
+              backoff = True
+
         if backoff:
            self.backoff = max(self.backoff, 0.1) * \
                           self.cfg.get('backoff-factor', 2.0)
@@ -692,8 +706,13 @@ class StoreMembaseBinary(StoreMemcachedBinary):
               time.sleep(self.backoff)
         else:
            self.backoff = 0
+
         if reset_my_awareness:
-           self.awareness.reset()
+           try:
+              self.awareness.reset()
+           except:
+              pass
+
         return received
 
     def recvMsgSockBuf(self, sock, buf):
